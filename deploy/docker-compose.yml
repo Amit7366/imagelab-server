@@ -23,7 +23,7 @@ services:
       mongo:
         condition: service_healthy
     ports:
-      - "127.0.0.1:5010:5000"
+      - "127.0.0.1:5900:5000"
     volumes:
       - imagelab_storage:/app/storage
     networks:
@@ -33,7 +33,7 @@ services:
     image: ghcr.io/amit7366/imagelab-client:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3010:3000"
+      - "127.0.0.1:3900:3000"
     networks:
       - imagelab
 
