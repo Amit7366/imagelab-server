@@ -76,6 +76,9 @@ jobs:
             set -euo pipefail
             cd /opt/imagelab
             test -f .env
+            if grep -Eq '^PUBLIC_ASSET_URL=https?://(localhost|127\.0\.0\.1)' .env; then
+              sed -i 's|^PUBLIC_ASSET_URL=.*|PUBLIC_ASSET_URL=https://api.imagelab.site|' .env
+            fi
             printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             docker compose pull api
             docker compose up -d mongo api
