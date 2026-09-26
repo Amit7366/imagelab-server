@@ -5,6 +5,7 @@ import { env } from "./env";
 
 export async function connectDatabase() {
   await mongoose.connect(env.MONGODB_URI);
+  await User.updateMany({ $or: [{ plan: { $exists: false } }, { plan: null }] }, { $set: { plan: "free" } });
   await seedSuperAdmin();
 }
 

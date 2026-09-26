@@ -1,5 +1,5 @@
-import mongoose from "mongoose";
 import { env } from "../../config/env";
+import { assertStorageFits, usageForOwner } from "../billing/quota";
 import type { AuthUser } from "../../types/auth";
 import { ApiError } from "../../utils/ApiError";
 import { Asset, type AssetDocument } from "./asset.model";
@@ -39,14 +39,6 @@ export function toPublicAsset(asset: AssetDocument): PublicAsset {
   };
 }
 
-async function usedBytes(ownerId: string): Promise<number> {
-  const [row] = await Asset.aggregate<{ total: number }>([
-    { $match: { owner: new mongoose.Types.ObjectId(ownerId), status: "ready" } },
-    { $group: { _id: null, total: { $sum: "$bytes" } } },
-  ]);
-  return row?.total ?? 0;
-}
-
 export const assetService = {
   async create(actor: AuthUser, file: { buffer: Buffer; originalname: string; size: number }) {
     if (!file?.buffer?.length) {
@@ -58,10 +50,7 @@ export const assetService = {
     }
 
     const inspected = await inspectAsset(file.buffer);
-    const used = await usedBytes(actor.id);
-    if (used + file.buffer.length > env.USER_STORAGE_QUOTA_BYTES) {
-      throw new ApiError(413, "Storage quota exceeded");
-    }
+    await assertStorageFits(actor.id, file.buffer.length);
 
     const contentHash = hashBuffer(file.buffer);
     await writeOriginal(contentHash, file.buffer);
@@ -106,17 +95,14 @@ export const assetService = {
       ];
     }
 
-    const [items, used] = await Promise.all([
+    const [items, usage] = await Promise.all([
       Asset.find(filter).sort({ createdAt: -1 }).limit(200),
-      usedBytes(actor.id),
+      usageForOwner(actor.id),
     ]);
 
     return {
       items: items.map(toPublicAsset),
-      usage: {
-        usedBytes: used,
-        quotaBytes: env.USER_STORAGE_QUOTA_BYTES,
-      },
+      usage,
     };
   },
 
@@ -137,10 +123,7 @@ export const assetService = {
 
     const asset = await assetService.getOwnedReady(actor, id);
     const inspected = await inspectAsset(file.buffer);
-    const used = await usedBytes(actor.id);
-    if (used - asset.bytes + file.buffer.length > env.USER_STORAGE_QUOTA_BYTES) {
-      throw new ApiError(413, "Storage quota exceeded");
-    }
+    await assertStorageFits(actor.id, file.buffer.length, asset.bytes);
 
     const previousHash = asset.contentHash;
     const contentHash = hashBuffer(file.buffer);

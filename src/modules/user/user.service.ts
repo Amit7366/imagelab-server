@@ -1,6 +1,7 @@
 import { PERMISSIONS, ROLES, hasPermission, type Role } from "../../constants/roles";
 import type { AuthUser } from "../../types/auth";
 import { ApiError } from "../../utils/ApiError";
+import { normalizePlan, type PlanId } from "../billing/plans";
 import { User, type UserDocument } from "./user.model";
 
 export interface PublicUser {
@@ -9,6 +10,7 @@ export interface PublicUser {
   email: string;
   role: Role;
   isActive: boolean;
+  plan: PlanId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,7 @@ export function toPublicUser(user: UserDocument): PublicUser {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    plan: normalizePlan(user.plan),
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };

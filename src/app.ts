@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/error.middleware";
 import { notFound } from "./middlewares/notFound.middleware";
+import { billingController } from "./modules/billing/billing.controller";
 import { deliveryRouter } from "./modules/delivery/delivery.route";
 import { router } from "./routes";
 
@@ -31,6 +32,8 @@ export function createApp() {
       credentials: true,
     })(req, res, next);
   });
+
+  app.post("/api/v1/billing/webhook", express.raw({ type: "application/json" }), billingController.webhook);
   app.use(express.json());
 
   app.use("/image", (_req, res, next) => {

@@ -18,7 +18,10 @@ const envSchema = z.object({
   STORAGE_ROOT: z.string().min(1).default("./storage"),
   PUBLIC_ASSET_URL: z.string().url().default("http://localhost:5000"),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
-  USER_STORAGE_QUOTA_BYTES: z.coerce.number().int().positive().default(1024 * 1024 * 1024),
+  STRIPE_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
+  STRIPE_PRICE_STARTER: z.string().optional().default(""),
+  STRIPE_PRICE_PRO: z.string().optional().default(""),
 });
 
 const parsed = envSchema.safeParse(process.env);
