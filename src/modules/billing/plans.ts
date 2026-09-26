@@ -14,8 +14,8 @@ export interface PlanDefinition {
 
 export const PLANS: Record<PlanId, PlanDefinition> = {
   free: { id: "free", name: "Free", priceCents: 0, interval: "month", credits: 25 },
-  starter: { id: "starter", name: "Starter", priceCents: 900, interval: "month", credits: 1024 },
-  pro: { id: "pro", name: "Pro", priceCents: 2900, interval: "month", credits: 10240 },
+  starter: { id: "starter", name: "Starter", priceCents: 2999, interval: "month", credits: 1024 },
+  pro: { id: "pro", name: "Pro", priceCents: 4999, interval: "month", credits: 10240 },
 };
 
 export function isPlanId(value: unknown): value is PlanId {

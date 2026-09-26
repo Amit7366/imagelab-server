@@ -24,5 +24,7 @@ describe("billing plans", () => {
 
   it("exposes the public catalog", () => {
     expect(catalog().map((plan) => plan.id)).toEqual(["free", "starter", "pro"]);
+    expect(catalog().find((plan) => plan.id === "starter")?.priceCents).toBe(2999);
+    expect(catalog().find((plan) => plan.id === "pro")?.priceCents).toBe(4999);
   });
 });

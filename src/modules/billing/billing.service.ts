@@ -32,6 +32,19 @@ function subscriptionPriceId(subscription: Stripe.Subscription) {
   return subscription.items.data[0]?.price?.id;
 }
 
+async function syncSubscription(user: UserDocument) {
+  if (!stripeEnabled() || !user.stripeCustomerId) return user;
+  const subscriptions = await getStripe().subscriptions.list({
+    customer: user.stripeCustomerId,
+    status: "all",
+    limit: 10,
+  });
+  const current = subscriptions.data.find((sub) => PAID_STATUSES.has(sub.status)) ?? subscriptions.data[0];
+  if (!current) return user;
+  await applySubscription(current, user.stripeCustomerId);
+  return (await User.findById(user.id)) ?? user;
+}
+
 export async function applySubscription(subscription: Stripe.Subscription, customerId?: string) {
   const ownerId = subscription.metadata?.userId;
   const customer = customerId || (typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id);
@@ -54,7 +67,7 @@ export async function applySubscription(subscription: Stripe.Subscription, custo
 
 export const billingService = {
   async plans(actor: AuthUser) {
-    const user = await loadUser(actor);
+    const user = await syncSubscription(await loadUser(actor));
     return {
       stripeEnabled: stripeEnabled(),
       current: {

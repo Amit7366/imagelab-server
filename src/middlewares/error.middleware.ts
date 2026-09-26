@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler } from "express";
 import mongoose from "mongoose";
+import Stripe from "stripe";
 import { ZodError } from "zod";
 import { TransformParseError } from "../modules/asset/transforms";
 import { ApiError } from "../utils/ApiError";
@@ -18,6 +19,14 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
         path: issue.path.join("."),
         message: issue.message,
       })),
+    });
+    return;
+  }
+
+  if (err instanceof Stripe.errors.StripeError) {
+    res.status(err.statusCode && err.statusCode < 500 ? err.statusCode : 400).json({
+      success: false,
+      message: err.message,
     });
     return;
   }

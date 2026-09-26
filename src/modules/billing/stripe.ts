@@ -3,10 +3,15 @@ import { env } from "../../config/env";
 import { ApiError } from "../../utils/ApiError";
 import type { PaidPlanId } from "./plans";
 
+const PRICE_ID = /^price_[A-Za-z0-9]+$/;
 let client: Stripe | null = null;
 
 export function stripeEnabled() {
-  return Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_PRICE_STARTER && env.STRIPE_PRICE_PRO);
+  return Boolean(
+    env.STRIPE_SECRET_KEY &&
+      PRICE_ID.test(env.STRIPE_PRICE_STARTER) &&
+      PRICE_ID.test(env.STRIPE_PRICE_PRO),
+  );
 }
 
 export function getStripe() {
@@ -21,8 +26,8 @@ export function getStripe() {
 
 export function priceIdForPlan(plan: PaidPlanId) {
   const priceId = plan === "starter" ? env.STRIPE_PRICE_STARTER : env.STRIPE_PRICE_PRO;
-  if (!priceId) {
-    throw new ApiError(503, "Billing is not configured");
+  if (!PRICE_ID.test(priceId)) {
+    throw new ApiError(503, "Stripe price IDs must look like price_... from the Stripe Dashboard, not a dollar amount");
   }
   return priceId;
 }
