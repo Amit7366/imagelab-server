@@ -7,6 +7,10 @@ import { notFound } from "./middlewares/notFound.middleware";
 import { deliveryRouter } from "./modules/delivery/delivery.route";
 import { router } from "./routes";
 
+const allowedOrigins = [
+  ...new Set([env.CLIENT_URL, "https://imagelab.site", "https://www.imagelab.site"]),
+];
+
 export function createApp() {
   const app = express();
 
@@ -17,7 +21,13 @@ export function createApp() {
       return;
     }
     cors({
-      origin: env.CLIENT_URL,
+      origin(origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(null, false);
+      },
       credentials: true,
     })(req, res, next);
   });
@@ -26,7 +36,7 @@ export function createApp() {
   app.use("/image", (_req, res, next) => {
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     res.removeHeader("X-Frame-Options");
-    res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${env.CLIENT_URL}`);
+    res.setHeader("Content-Security-Policy", `frame-ancestors 'self' ${allowedOrigins.join(" ")}`);
     next();
   });
   app.use("/image", deliveryRouter);
