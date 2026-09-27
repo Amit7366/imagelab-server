@@ -17,9 +17,20 @@ const uploadLimiter = rateLimit({
   message: { success: false, message: "Too many uploads. Try again later." },
 });
 
+const apiKeyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => !req.apiKey,
+  keyGenerator: (req) => req.apiKey?.id ?? req.user?.id ?? "anonymous",
+  message: { success: false, message: "Too many API requests. Try again later." },
+});
+
 const assetRouter = Router();
 
 assetRouter.use(authenticate);
+assetRouter.use(apiKeyLimiter);
 
 assetRouter.get("/", requirePermission(PERMISSIONS.ASSET_READ), validate(listAssetsSchema), assetController.list);
 assetRouter.post(
@@ -34,6 +45,12 @@ assetRouter.post(
   requirePermission(PERMISSIONS.ASSET_DELETE),
   validate(bulkDeleteSchema),
   assetController.removeMany,
+);
+assetRouter.get(
+  "/:id",
+  requirePermission(PERMISSIONS.ASSET_READ),
+  validate(assetIdSchema),
+  assetController.getOne,
 );
 assetRouter.patch(
   "/:id",

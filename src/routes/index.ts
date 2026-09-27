@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { apiKeyRouter } from "../modules/api-key/api-key.route";
+import { apidocsController } from "../modules/apidocs/apidocs.controller";
 import { assetRouter } from "../modules/asset/asset.route";
 import { authRouter } from "../modules/auth/auth.route";
 import { billingRouter } from "../modules/billing/billing.route";
@@ -11,10 +13,13 @@ router.get("/health", (_req, res) => {
   res.json({ success: true, message: "ImageLab API is running" });
 });
 
+router.get("/openapi.json", apidocsController.spec);
+
 router.use("/auth", authRouter);
 router.use("/users", userRouter);
 router.use("/roles", roleRouter);
 router.use("/assets", assetRouter);
 router.use("/billing", billingRouter);
+router.use("/api-keys", apiKeyRouter);
 
 export { router };

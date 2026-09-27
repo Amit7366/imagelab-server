@@ -1,6 +1,6 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import { authenticate } from "../../middlewares/auth.middleware";
+import { authenticate, requireJwt } from "../../middlewares/auth.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { authController } from "./auth.controller";
 import { loginSchema, refreshSchema, registerSchema } from "./auth.validation";
@@ -19,6 +19,6 @@ authRouter.post("/register", authLimiter, validate(registerSchema), authControll
 authRouter.post("/login", authLimiter, validate(loginSchema), authController.login);
 authRouter.post("/refresh", validate(refreshSchema), authController.refresh);
 authRouter.post("/logout", validate(refreshSchema), authController.logout);
-authRouter.get("/me", authenticate, authController.me);
+authRouter.get("/me", authenticate, requireJwt, authController.me);
 
 export { authRouter };

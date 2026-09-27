@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticate } from "../../middlewares/auth.middleware";
+import { authenticate, requireJwt } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/authorize.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { PERMISSIONS } from "../../constants/roles";
@@ -8,7 +8,7 @@ import { createUserSchema, listUsersSchema, updateRoleSchema, updateUserSchema, 
 
 const userRouter = Router();
 
-userRouter.use(authenticate);
+userRouter.use(authenticate, requireJwt);
 
 userRouter.get("/", requirePermission(PERMISSIONS.USER_READ), validate(listUsersSchema), userController.list);
 userRouter.post("/", requirePermission(PERMISSIONS.USER_CREATE), validate(createUserSchema), userController.create);

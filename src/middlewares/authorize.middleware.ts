@@ -10,6 +10,16 @@ export const requirePermission =
       return;
     }
 
+    if (req.apiKey) {
+      const allowed = permissions.every((permission) => req.apiKey!.scopes.includes(permission));
+      if (!allowed) {
+        next(new ApiError(403, "This API key does not have permission to perform this action"));
+        return;
+      }
+      next();
+      return;
+    }
+
     const allowed = permissions.every((permission) => hasPermission(req.user!.role, permission));
     if (!allowed) {
       next(new ApiError(403, "You do not have permission to perform this action"));

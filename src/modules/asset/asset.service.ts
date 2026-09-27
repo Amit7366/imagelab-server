@@ -22,6 +22,24 @@ export interface PublicAsset {
   updatedAt: Date;
 }
 
+const OBJECT_ID = /^[a-f\d]{24}$/i;
+
+function isObjectId(value: string) {
+  return OBJECT_ID.test(value);
+}
+
+function matchesAssetRef(asset: AssetDocument, ref: string) {
+  return asset.id === ref || asset.publicId === ref;
+}
+
+async function findReadyByRef(id: string) {
+  if (isObjectId(id)) {
+    const byId = await Asset.findById(id);
+    if (byId) return byId;
+  }
+  return Asset.findOne({ publicId: id });
+}
+
 export function toPublicAsset(asset: AssetDocument): PublicAsset {
   return {
     id: asset.id,
@@ -72,14 +90,18 @@ export const assetService = {
   },
 
   async getOwnedReady(actor: AuthUser, id: string) {
-    const asset = await Asset.findById(id);
+    const asset = await findReadyByRef(id);
     if (!asset || asset.status !== "ready") {
       throw new ApiError(404, "Asset not found");
     }
     if (asset.owner.toString() !== actor.id) {
-      throw new ApiError(403, "You cannot change this image");
+      throw new ApiError(403, "You do not own this asset");
     }
     return asset;
+  },
+
+  async getOne(actor: AuthUser, id: string) {
+    return toPublicAsset(await assetService.getOwnedReady(actor, id));
   },
 
   async listMine(actor: AuthUser, query?: string) {
@@ -154,18 +176,26 @@ export const assetService = {
 
   async removeMany(actor: AuthUser, ids: string[]) {
     const uniqueIds = [...new Set(ids)];
+    const objectIds = uniqueIds.filter(isObjectId);
+    const publicIds = uniqueIds.filter((id) => !isObjectId(id));
     const assets = await Asset.find({
-      _id: { $in: uniqueIds },
       owner: actor.id,
       status: "ready",
+      $or: [
+        ...(objectIds.length ? [{ _id: { $in: objectIds } }] : []),
+        ...(publicIds.length ? [{ publicId: { $in: publicIds } }] : []),
+      ],
     });
 
-    if (assets.length !== uniqueIds.length) {
+    const matched = uniqueIds.map((id) => assets.find((asset) => matchesAssetRef(asset, id)));
+    if (matched.some((asset) => !asset)) {
       throw new ApiError(404, "One or more images were not found");
     }
 
-    const hashes = [...new Set(assets.map((asset) => asset.contentHash))];
-    await Asset.updateMany({ _id: { $in: uniqueIds } }, { $set: { status: "deleted" } });
+    const ready = matched as AssetDocument[];
+    const mongoIds = [...new Set(ready.map((asset) => asset.id))];
+    const hashes = [...new Set(ready.map((asset) => asset.contentHash))];
+    await Asset.updateMany({ _id: { $in: mongoIds } }, { $set: { status: "deleted" } });
 
     for (const hash of hashes) {
       const remaining = await Asset.countDocuments({ contentHash: hash, status: "ready" });

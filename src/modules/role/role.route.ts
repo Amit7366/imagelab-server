@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { PERMISSIONS } from "../../constants/roles";
-import { authenticate } from "../../middlewares/auth.middleware";
+import { authenticate, requireJwt } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/authorize.middleware";
 import { validate } from "../../middlewares/validate.middleware";
 import { roleController } from "./role.controller";
@@ -11,6 +11,7 @@ const roleRouter = Router();
 roleRouter.get(
   "/",
   authenticate,
+  requireJwt,
   requirePermission(PERMISSIONS.ROLE_READ),
   validate(listRolesSchema),
   roleController.list,

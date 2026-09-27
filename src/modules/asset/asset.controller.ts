@@ -21,6 +21,12 @@ export const assetController = {
     res.json({ success: true, message: "Assets fetched", data });
   }),
 
+  getOne: asyncHandler(async (req, res) => {
+    const params = req.params as unknown as z.infer<typeof assetIdSchema>["params"];
+    const data = await assetService.getOne(requireActor(req), params.id);
+    res.json({ success: true, message: "Asset fetched", data });
+  }),
+
   rename: asyncHandler(async (req, res) => {
     const parsed = req as unknown as {
       params: z.infer<typeof renameAssetSchema>["params"];

@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid asset id");
+const assetRef = z
+  .string()
+  .trim()
+  .min(8)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/, "Invalid asset id");
 
 export const listAssetsSchema = z.object({
   query: z.object({
@@ -10,13 +15,13 @@ export const listAssetsSchema = z.object({
 
 export const assetIdSchema = z.object({
   params: z.object({
-    id: objectId,
+    id: assetRef,
   }),
 });
 
 export const renameAssetSchema = z.object({
   params: z.object({
-    id: objectId,
+    id: assetRef,
   }),
   body: z.object({
     originalName: z.string().trim().min(1).max(180),
@@ -25,6 +30,6 @@ export const renameAssetSchema = z.object({
 
 export const bulkDeleteSchema = z.object({
   body: z.object({
-    ids: z.array(objectId).min(1).max(50),
+    ids: z.array(assetRef).min(1).max(50),
   }),
 });
