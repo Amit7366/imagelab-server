@@ -18,6 +18,7 @@ const envSchema = z.object({
   STORAGE_ROOT: z.string().min(1).default("./storage"),
   PUBLIC_ASSET_URL: z.string().url().default("http://localhost:5000"),
   MAX_UPLOAD_BYTES: z.coerce.number().int().positive().default(10 * 1024 * 1024),
+  PLATFORM_STORAGE_BYTES: z.coerce.number().int().positive().default(200 * 1024 * 1024 * 1024),
   STRIPE_SECRET_KEY: z.string().optional().default(""),
   STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
   STRIPE_PRICE_STARTER: z.string().optional().default(""),

@@ -13,6 +13,7 @@ export const PERMISSIONS = {
   USER_DELETE: "user:delete",
   ROLE_READ: "role:read",
   ROLE_ASSIGN: "role:assign",
+  OPS_READ: "ops:read",
   ASSET_UPLOAD: "asset:upload",
   ASSET_READ: "asset:read",
   ASSET_UPDATE: "asset:update",

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { adminRouter } from "../modules/admin/admin.route";
 import { apiKeyRouter } from "../modules/api-key/api-key.route";
 import { apidocsController } from "../modules/apidocs/apidocs.controller";
 import { assetRouter } from "../modules/asset/asset.route";
@@ -17,6 +18,7 @@ router.get("/openapi.json", apidocsController.spec);
 
 router.use("/auth", authRouter);
 router.use("/users", userRouter);
+router.use("/admin", adminRouter);
 router.use("/roles", roleRouter);
 router.use("/assets", assetRouter);
 router.use("/billing", billingRouter);

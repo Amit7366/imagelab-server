@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { access, mkdir, rm, unlink, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "../../config/env";
 
@@ -96,4 +96,42 @@ export function sanitizeOriginalName(name: string): string {
 
 export function hashString(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+async function directoryBytes(dir: string): Promise<number> {
+  let total = 0;
+  const stack = [dir];
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current) continue;
+    let entries;
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      try {
+        total += (await stat(full)).size;
+      } catch {
+        // Skip files that disappear while we measure.
+      }
+    }
+  }
+  return total;
+}
+
+export async function storageUsageBytes() {
+  const root = storageRoot();
+  const [originals, variants] = await Promise.all([
+    directoryBytes(path.join(root, "originals")),
+    directoryBytes(path.join(root, "variants")),
+  ]);
+  return { originals, variants, usedBytes: originals + variants };
 }

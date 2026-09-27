@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PLAN_IDS } from "../billing/plans";
 import { ROLES } from "../../constants/roles";
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid id");
@@ -9,6 +10,14 @@ export const listUsersSchema = z.object({
     limit: z.coerce.number().int().min(1).max(50).default(10),
     search: z.string().trim().max(80).optional(),
     role: z.enum([ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.USER]).optional(),
+    plan: z.enum(PLAN_IDS).optional(),
+    isActive: z
+      .enum(["true", "false", "1", "0"])
+      .optional()
+      .transform((value) => {
+        if (value === undefined) return undefined;
+        return value === "true" || value === "1";
+      }),
   }),
 });
 

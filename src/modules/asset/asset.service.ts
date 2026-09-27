@@ -1,5 +1,6 @@
 import { env } from "../../config/env";
 import { assertStorageFits, usageForOwner } from "../billing/quota";
+import { recordBandwidth } from "../usage/bandwidth";
 import type { AuthUser } from "../../types/auth";
 import { ApiError } from "../../utils/ApiError";
 import { Asset, type AssetDocument } from "./asset.model";
@@ -72,6 +73,8 @@ export const assetService = {
 
     const contentHash = hashBuffer(file.buffer);
     await writeOriginal(contentHash, file.buffer);
+
+    recordBandwidth({ inboundBytes: file.buffer.length, uploads: 1 });
 
     const asset = await Asset.create({
       owner: actor.id,
@@ -159,6 +162,7 @@ export const assetService = {
     asset.mime = inspected.mime;
     asset.originalName = sanitizeOriginalName(file.originalname);
     await asset.save();
+    recordBandwidth({ inboundBytes: file.buffer.length, uploads: 1 });
 
     if (previousHash !== contentHash) {
       const remaining = await Asset.countDocuments({ contentHash: previousHash, status: "ready" });

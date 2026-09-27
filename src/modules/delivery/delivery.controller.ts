@@ -1,4 +1,5 @@
 import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
 import type { Request, Response } from "express";
 import { FORMAT_MIME } from "../asset/constants";
 import { applyTransforms } from "../asset/process";
@@ -10,6 +11,7 @@ import {
   parseTransforms,
   resolveTransforms,
 } from "../asset/transforms";
+import { recordBandwidth } from "../usage/bandwidth";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { ApiError } from "../../utils/ApiError";
 
@@ -23,13 +25,35 @@ function normalizePublicId(raw: string): string {
   return value.replace(/\.(jpe?g|png|webp|gif|avif|pdf)$/i, "");
 }
 
-function sendFile(req: Request, res: Response, filePath: string, mime: string, etag: string) {
+async function sendFile(
+  req: Request,
+  res: Response,
+  filePath: string,
+  mime: string,
+  etag: string,
+  kind: "original" | "transform",
+) {
   res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   res.setHeader("ETag", etag);
   res.setHeader("Content-Type", mime);
 
-  if (req.headers["if-none-match"] === etag) {
+  let size = 0;
+  try {
+    size = (await stat(filePath)).size;
+  } catch {
+    throw new ApiError(404, "Image file is missing");
+  }
+
+  const hit = req.headers["if-none-match"] === etag;
+  recordBandwidth({
+    outboundBytes: hit ? 0 : size,
+    requests: 1,
+    originals: kind === "original" ? 1 : 0,
+    transforms: kind === "transform" ? 1 : 0,
+  });
+
+  if (hit) {
     res.status(304).end();
     return;
   }
@@ -47,7 +71,7 @@ export const deliveryController = {
   original: asyncHandler(async (req, res) => {
     const publicId = normalizePublicId(String(req.params.publicId));
     const asset = await assetService.getReadyByPublicId(publicId);
-    sendFile(req, res, originalPath(asset.contentHash), asset.mime, `"${asset.contentHash}"`);
+    await sendFile(req, res, originalPath(asset.contentHash), asset.mime, `"${asset.contentHash}"`, "original");
   }),
 
   transformed: asyncHandler(async (req, res) => {
@@ -79,12 +103,13 @@ export const deliveryController = {
       await writeVariant(asset.contentHash, transformHash, ext, buffer);
     }
 
-    sendFile(
+    await sendFile(
       req,
       res,
       variantPath(asset.contentHash, transformHash, ext),
       FORMAT_MIME[resolved.format],
       `"${asset.contentHash}-${transformHash}"`,
+      "transform",
     );
   }),
 };

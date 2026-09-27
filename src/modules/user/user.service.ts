@@ -1,7 +1,9 @@
+import mongoose from "mongoose";
 import { PERMISSIONS, ROLES, hasPermission, type Role } from "../../constants/roles";
 import type { AuthUser } from "../../types/auth";
 import { ApiError } from "../../utils/ApiError";
-import { normalizePlan, type PlanId } from "../billing/plans";
+import { Asset } from "../asset/asset.model";
+import { normalizePlan, usageFromBytes, type PlanId, type StorageUsage } from "../billing/plans";
 import { User, type UserDocument } from "./user.model";
 
 export interface PublicUser {
@@ -15,6 +17,10 @@ export interface PublicUser {
   updatedAt: Date;
 }
 
+export interface ManagedUser extends PublicUser {
+  usage: StorageUsage;
+}
+
 export function toPublicUser(user: UserDocument): PublicUser {
   return {
     id: user.id,
@@ -26,6 +32,15 @@ export function toPublicUser(user: UserDocument): PublicUser {
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
+}
+
+async function usageByOwners(ownerIds: string[]) {
+  if (ownerIds.length === 0) return new Map<string, number>();
+  const rows = await Asset.aggregate<{ _id: unknown; bytes: number }>([
+    { $match: { owner: { $in: ownerIds.map((id) => new mongoose.Types.ObjectId(id)) }, status: "ready" } },
+    { $group: { _id: "$owner", bytes: { $sum: "$bytes" } } },
+  ]);
+  return new Map(rows.map((row) => [String(row._id), row.bytes]));
 }
 
 async function assertNotLastSuperAdmin(userId: string) {
@@ -68,12 +83,14 @@ export const userService = {
     return toPublicUser(user);
   },
 
-  async list(query: { page: number; limit: number; search?: string; role?: Role }) {
-    const filter: {
-      role?: Role;
-      $or?: Array<{ name?: RegExp; email?: RegExp }>;
-    } = {};
+  async list(query: { page: number; limit: number; search?: string; role?: Role; plan?: PlanId; isActive?: boolean }) {
+    const filter: Record<string, unknown> = {};
     if (query.role) filter.role = query.role;
+    if (query.plan) filter.plan = query.plan;
+    if (query.isActive !== undefined) {
+      const raw = query.isActive as unknown;
+      filter.isActive = raw === true || raw === "true" || raw === "1";
+    }
     if (query.search) {
       const pattern = query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = [{ name: new RegExp(pattern, "i") }, { email: new RegExp(pattern, "i") }];
@@ -87,8 +104,15 @@ export const userService = {
       User.countDocuments(filter),
     ]);
 
+    const used = await usageByOwners(users.map((user) => user.id));
     return {
-      users: users.map(toPublicUser),
+      users: users.map((user) => {
+        const publicUser = toPublicUser(user);
+        return {
+          ...publicUser,
+          usage: usageFromBytes(used.get(user.id) ?? 0, publicUser.plan),
+        } satisfies ManagedUser;
+      }),
       page: query.page,
       limit: query.limit,
       total,
