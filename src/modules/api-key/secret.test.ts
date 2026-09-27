@@ -3,6 +3,8 @@ import { PERMISSIONS } from "../../constants/roles";
 import { ApiError } from "../../utils/ApiError";
 import {
   createApiKeySecret,
+  decryptSecret,
+  encryptSecret,
   hashApiKey,
   isApiKeySecret,
   keyPrefix,
@@ -17,7 +19,7 @@ describe("api key secrets", () => {
     expect(keyPrefix("production")).toBe("il_sk_live_");
   });
 
-  it("creates a hashed secret that is only shown in full once", () => {
+  it("creates a hashed secret that round-trips through encryption", () => {
     const generated = createApiKeySecret("development");
     expect(generated.secret.startsWith("il_sk_test_")).toBe(true);
     expect(isApiKeySecret(generated.secret)).toBe(true);
@@ -26,6 +28,14 @@ describe("api key secrets", () => {
     expect(generated.lastFour).toBe(generated.secret.slice(-4));
     expect(generated.prefix.startsWith("il_sk_test_")).toBe(true);
     expect(generated.secret.includes(generated.lastFour)).toBe(true);
+    const material = "test-encryption-material-16";
+    const stored = encryptSecret(generated.secret, material);
+    expect(stored).not.toContain(generated.secret);
+    expect(decryptSecret(stored, material)).toBe(generated.secret);
+  });
+
+  it("refuses a tampered encrypted secret", () => {
+    expect(() => decryptSecret("not.a.valid", "test-encryption-material-16")).toThrow(ApiError);
   });
 
   it("creates live keys in production", () => {

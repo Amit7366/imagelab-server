@@ -11,6 +11,7 @@ export interface IApiKey {
   keyHash: string;
   prefix: string;
   lastFour: string;
+  secretCipher?: string;
   scopes: Permission[];
   status: ApiKeyStatus;
   lastUsedAt?: Date;
@@ -25,6 +26,7 @@ const apiKeySchema = new mongoose.Schema<IApiKey, Model<IApiKey>>(
     owner: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 80 },
     keyHash: { type: String, required: true, unique: true, select: false },
+    secretCipher: { type: String, select: false },
     prefix: { type: String, required: true },
     lastFour: { type: String, required: true, minlength: 4, maxlength: 4 },
     scopes: {

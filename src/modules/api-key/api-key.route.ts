@@ -10,6 +10,7 @@ apiKeyRouter.use(authenticate, requireJwt);
 
 apiKeyRouter.get("/", apiKeyController.list);
 apiKeyRouter.post("/", validate(createApiKeySchema), apiKeyController.create);
+apiKeyRouter.post("/:id/reveal", validate(apiKeyIdSchema), apiKeyController.reveal);
 apiKeyRouter.delete("/:id", validate(apiKeyIdSchema), apiKeyController.revoke);
 
 export { apiKeyRouter };

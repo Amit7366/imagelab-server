@@ -3,7 +3,8 @@ import type { AuthUser } from "../../types/auth";
 import { ApiError } from "../../utils/ApiError";
 import { User } from "../user/user.model";
 import { ApiKey, type ApiKeyDocument } from "./api-key.model";
-import { createApiKeySecret, hashApiKey, MAX_API_KEYS, normalizeScopes } from "./secret";
+import { env } from "../../config/env";
+import { createApiKeySecret, decryptSecret, encryptSecret, hashApiKey, MAX_API_KEYS, normalizeScopes } from "./secret";
 
 export interface PublicApiKey {
   id: string;
@@ -14,6 +15,7 @@ export interface PublicApiKey {
   status: "active" | "revoked";
   lastUsedAt: Date | null;
   createdAt: Date;
+  canReveal: boolean;
 }
 
 export interface CreatedApiKey extends PublicApiKey {
@@ -35,12 +37,13 @@ function toPublicApiKey(key: ApiKeyDocument): PublicApiKey {
     status: key.status,
     lastUsedAt: key.lastUsedAt ?? null,
     createdAt: key.createdAt,
+    canReveal: Boolean(key.secretCipher),
   };
 }
 
 export const apiKeyService = {
   async list(actor: AuthUser) {
-    const keys = await ApiKey.find({ owner: actor.id }).sort({ createdAt: -1 });
+    const keys = await ApiKey.find({ owner: actor.id }).select("+secretCipher").sort({ createdAt: -1 });
     return keys.map(toPublicApiKey);
   },
 
@@ -55,6 +58,7 @@ export const apiKeyService = {
       owner: actor.id,
       name: input.name?.trim() || "Default",
       keyHash: generated.keyHash,
+      secretCipher: encryptSecret(generated.secret, env.JWT_ACCESS_SECRET),
       prefix: generated.prefix,
       lastFour: generated.lastFour,
       scopes: normalizeScopes(input.scopes),
@@ -68,7 +72,7 @@ export const apiKeyService = {
   },
 
   async revoke(actor: AuthUser, id: string) {
-    const key = await ApiKey.findOne({ _id: id, owner: actor.id });
+    const key = await ApiKey.findOne({ _id: id, owner: actor.id }).select("+secretCipher");
     if (!key) throw new ApiError(404, "API key not found");
     if (key.status === "revoked") {
       return toPublicApiKey(key);
@@ -76,6 +80,15 @@ export const apiKeyService = {
     key.status = "revoked";
     await key.save();
     return toPublicApiKey(key);
+  },
+
+  async reveal(actor: AuthUser, id: string) {
+    const key = await ApiKey.findOne({ _id: id, owner: actor.id }).select("+secretCipher");
+    if (!key) throw new ApiError(404, "API key not found");
+    if (!key.secretCipher) {
+      throw new ApiError(409, "This API key cannot be revealed. Create a new key.");
+    }
+    return { secret: decryptSecret(key.secretCipher, env.JWT_ACCESS_SECRET) };
   },
 
   async authenticate(secret: string): Promise<ResolvedApiKey> {

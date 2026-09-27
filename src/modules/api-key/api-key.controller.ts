@@ -13,7 +13,13 @@ export const apiKeyController = {
   create: asyncHandler(async (req, res) => {
     const body = req.body as z.infer<typeof createApiKeySchema>["body"];
     const data = await apiKeyService.create(requireActor(req), body);
-    res.status(201).json({ success: true, message: "API key created. Copy the secret now; it will not be shown again.", data });
+    res.status(201).json({ success: true, message: "API key created", data });
+  }),
+
+  reveal: asyncHandler(async (req, res) => {
+    const params = req.params as unknown as z.infer<typeof apiKeyIdSchema>["params"];
+    const data = await apiKeyService.reveal(requireActor(req), params.id);
+    res.json({ success: true, message: "API key secret", data });
   }),
 
   revoke: asyncHandler(async (req, res) => {

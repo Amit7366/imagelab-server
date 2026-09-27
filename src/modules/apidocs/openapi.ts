@@ -180,7 +180,7 @@ export const openApiSpec = {
       get: {
         tags: ["API keys"],
         summary: "List API keys",
-        description: "Dashboard JWT only. Secrets are never returned after create.",
+        description: "Dashboard JWT only. List never includes the full secret; use reveal to fetch it.",
         security: [{ dashboardJwt: [] }],
         responses: { "200": { description: "Key metadata" } },
       },
@@ -205,7 +205,20 @@ export const openApiSpec = {
           },
         },
         responses: {
-          "201": { description: "Metadata plus secret. Copy the secret immediately." },
+          "201": { description: "Metadata plus secret. The secret can also be revealed later from the dashboard." },
+        },
+      },
+    },
+    "/api/v1/api-keys/{id}/reveal": {
+      post: {
+        tags: ["API keys"],
+        summary: "Reveal the full secret",
+        description: "Dashboard JWT only. Returns the same secret that was created for this key.",
+        security: [{ dashboardJwt: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "{ secret }" },
+          "409": { description: "Key was created before secrets were stored encrypted." },
         },
       },
     },
